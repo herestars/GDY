@@ -1,7 +1,5 @@
 package com.herestars.data
 
-import java.util.StringJoiner
-
 /**
  * create by HanZiXin on 2022/10/21
  */
@@ -12,11 +10,19 @@ open class CardSet : ArrayList<Card> {
 
     /**
      * 用于判断是否有手牌
+     * 王可以当癞子，所以要统计一下
      */
     infix fun have(other: CardSet): Boolean {
         val copy = ArrayList<Card>(this)
+        // 统计王的数量
+        var cnt = copy.count { Card.isKing(it) }
         other.forEach {
-            if (!copy.remove(it)) return false
+            if (!copy.remove(it)) {
+                if (--cnt < 0) return false
+                if (this is HandCards) {
+                    this.isKing = true
+                }
+            }
         }
         return true
     }
@@ -59,10 +65,14 @@ open class CardSet : ArrayList<Card> {
  */
 class HandCards(elements: MutableList<Card>) : CardSet(elements) {
 
+    var isKing = false
+
     //出牌
     fun play(cardSet: CardSet) {
         cardSet.forEach {
-            this.remove(it)
+            // 如果没有这张牌，说明是王当癞子
+            if (!this.remove(it))
+                this.remove(Card.KING)
         }
     }
 }

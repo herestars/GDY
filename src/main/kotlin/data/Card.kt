@@ -1,6 +1,5 @@
 package com.herestars.data
 
-import io.ktor.util.*
 import java.util.*
 
 /**
@@ -35,7 +34,7 @@ enum class Card(val value: Int, val id: String) {
             values().firstOrNull { it.value == value } ?: NOT_A_CARD
 
         internal fun cards(): CardSet =
-            CardSet(A, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, TEN, J, Q, K)
+            CardSet(THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, TEN, J, Q, K, A, TWO)
 
         internal fun kinds(): CardSet =
             CardSet(KING, KING, KING)

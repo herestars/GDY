@@ -9,13 +9,13 @@ import net.mamoe.mirai.contact.Member
  */
 class Table : Iterable<Member> {
     val players = mutableListOf<Member>()
-    var cards: CardSet? = null
+    var cards = CardSet()
     var cardIndex = 0
 
     var index = 0
 
-    lateinit var banker: Member
-    lateinit var members: List<Member>
+    var banker: Member? = null
+
     /*
        构建玩家到手牌的映射
      */
@@ -33,7 +33,7 @@ class Table : Iterable<Member> {
         }
     }
 
-    fun isFull(): Boolean {
+    private fun isFull(): Boolean {
         return players.size == 7
     }
 

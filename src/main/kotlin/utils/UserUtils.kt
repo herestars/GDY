@@ -7,14 +7,14 @@ import net.mamoe.mirai.contact.User
 /**
  * create by HanZiXin on 2022/10/25
  */
-val User.douDiZhuData
+val User.GDYData
     get() = PlayerData.data.getOrPut(this.id) { CustomData(0, 0) }
 
 val User.winTimes
-    get() = douDiZhuData.winTimes
+    get() = GDYData.winTimes
 
 val User.gameTimes
-    get() = douDiZhuData.gameTimes
+    get() = GDYData.gameTimes
 
 val User.winRate
     get() = winTimes.toFloat() / gameTimes.toFloat()

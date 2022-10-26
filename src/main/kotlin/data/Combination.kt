@@ -32,7 +32,10 @@ class Single(private val card: Card) : Combination(card) {
     override fun toString(): String = CardSet(card).toString()
 }
 
-fun CardSet.isSingle(): Single? = if (size == 1) Single(get(0)) else null
+/**
+ * 不能单出王
+ */
+fun CardSet.isSingle(): Single? = if (size == 1 && !Card.isKing(this[0])) Single(get(0)) else null
 
 /**
  * ### 对子
@@ -54,26 +57,18 @@ fun CardSet.isDouble(): Double? =
  * @param   card    手牌
  * @param   soft    是否是软炸
  */
-class Bomb(private val card: Card, private val soft: Boolean) : Combination(card) {
+class Bomb(private val card: Card) : Combination(card) {
     override fun toString(): String = CardSet(card, card, card).toString()
 }
 
 fun CardSet.isBomb(): Bomb? =
-    if (size == 3) {
-        this.sort()
-        // 没有王的硬炸
-        if (all { it == this[0] }) Bomb(this[0], false)
-        // 软炸
-        if (this[0] == this[1] && Card.isKing(this[2])) Bomb(this[0], true)
-        if (!Card.isKing(this[0]) && Card.isKing(this[1]) && Card.isKing(this[1])) Bomb(this[0], true)
-        null
-    }
+    if (size == 3 && this[0] == this[1] && this[1] == this[2]) Bomb(this[0])
     else null
 
 /**
  * ### 顺子
  */
-class Smooth(private val start: Card, private val end: Card) : Combination(start) {
+class Smooth(val start: Card, val end: Card) : Combination(start) {
     override fun toString(): String {
         val cardSet = CardSet()
         for (i in (start.value..end.value)) {
