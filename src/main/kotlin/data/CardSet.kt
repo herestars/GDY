@@ -14,6 +14,7 @@ open class CardSet : ArrayList<Card> {
      */
     infix fun have(other: CardSet): Boolean {
         val copy = ArrayList<Card>(this)
+        if (copy.size == 1 && !this.contains(copy[0])) return false
         // 统计王的数量
         var cnt = copy.count { Card.isKing(it) }
         other.forEach {
@@ -30,9 +31,9 @@ open class CardSet : ArrayList<Card> {
     fun sort() = sortedBy { it.value }
 
     fun toSortedString(): String {
-        sort()
+        val sortList = sort()
         var str = ""
-        forEach {
+        sortList.forEach {
             str += "[${it.id}]"
         }
         return str

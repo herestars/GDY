@@ -1,5 +1,6 @@
 package com.herestars.game
 
+import com.herestars.GDY
 import com.herestars.config.GDYConfig
 import com.herestars.data.*
 import com.herestars.utils.*
@@ -9,6 +10,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
 import net.mamoe.mirai.contact.Group
 import net.mamoe.mirai.contact.Member
+import net.mamoe.mirai.contact.nameCardOrNick
 import net.mamoe.mirai.event.EventPriority
 import net.mamoe.mirai.event.events.GroupMessageEvent
 import net.mamoe.mirai.event.events.MessageEvent
@@ -37,7 +39,7 @@ class Game(private val gameGroup: Group, private val basicBet: Int = 1) : Comple
 
             // 当游戏存在时拦截创建游戏的指令
             channel.subscribeGroupMessages(priority = EventPriority.HIGH) {
-                (case("创建游戏") and sentFrom(gameGroup)) reply {
+                (case("创建干瞪眼") and sentFrom(gameGroup)) reply {
                     this.intercept()
                     "已经有一个游戏了"
                 }
@@ -49,7 +51,7 @@ class Game(private val gameGroup: Group, private val basicBet: Int = 1) : Comple
                         this@Game.cancel()
                     }
                 }
-                "当前玩家" reply { "当前玩家：${table.players.map { it.nick }}" }
+                "当前玩家" reply { "当前玩家：${table.players.map { it.nameCardOrNick }}" }
             }
         }
         prepare()
@@ -69,10 +71,17 @@ class Game(private val gameGroup: Group, private val basicBet: Int = 1) : Comple
         }
         val job = scopedChannel.subscribeGroupMessages {
             (case("上桌") and sentFrom(gameGroup)) reply {
-                if (!sender.enough(200)) {
-                    "你的point不够200个哦，你没钱了"
+                if (!sender.enough(0)) {
+                    if (System.currentTimeMillis() / 1000 / 60 / 60 / 24 -
+                        sender.data.lastApplyTime / 1000 / 60 / 60 / 24 > 0) {
+                        sender.data.coins += 200
+                        if (table.enter(sender))
+                            "加入成功\n当前玩家：${table.players.map { it.nameCardOrNick }}"
+                        else "人满了或你已经在游戏中了，无法加入"
+                    }
+                    else "你的point没了哦"
                 } else if (table.enter(sender)) {
-                    "加入成功\n当前玩家：${table.players.map { it.nick }}"
+                    "加入成功\n当前玩家：${table.players.map { it.nameCardOrNick }}"
                 } else {
                     "人满了或你已经在游戏中了，无法加入"
                 }
@@ -80,16 +89,16 @@ class Game(private val gameGroup: Group, private val basicBet: Int = 1) : Comple
             case("下桌") {
                 if (sender in table.players) {
                     table.players.remove(sender)
-                    subject.sendMessage("<${sender.nick}>下桌成功")
+                    subject.sendMessage("<${sender.nameCardOrNick}>下桌成功")
                 }
             }
-            (case("开始游戏")) reply {
+            (case("开始干瞪眼")) reply {
                 if (sender in table.players) {
                     if (table.players.size >= 2) {
                         started = true
                         prepareJob.cancel()
                     } else {
-                        "至少要2个人才能开始游戏捏\n" + "当前玩家：${table.players.map { it.nick }}"
+                        "至少要2个人才能开始游戏捏\n" + "当前玩家：${table.players.map { it.nameCardOrNick }}"
                     }
                 }
             }
@@ -107,18 +116,13 @@ class Game(private val gameGroup: Group, private val basicBet: Int = 1) : Comple
         table.cards = cards
         table.handCard = mutableMapOf()
         var start = 0
+        if (table.banker == null) table.banker = table.players[0]
         for (player in table.players) {
-            if (player == table.banker) {
-                table.handCard[player] = HandCards(cards.subList(start, start + 6))
-                start += 6
-            } else {
-                table.handCard[player] = HandCards(cards.subList(start, start + 5))
-                start += 5
-            }
-            player.sendMessage("当前手牌：${player.handCards().sort()}")
+            table.handCard[player] = HandCards(cards.subList(start, start + 5))
+            start += 5
+            player.sendMessage("当前手牌：${player.handCards().toSortedString()}")
         }
         table.cardIndex = start
-        if (table.banker == null) table.banker = table.players[0]
         startGame();
     }
 
@@ -130,13 +134,35 @@ class Game(private val gameGroup: Group, private val basicBet: Int = 1) : Comple
         var lastCombination: Combination = NotACombination
         var lastPlayer = table.players[table.index]
         var lastKing = false
-        val lastOtherCombination: Combination = NotACombination
+        var lastOtherCombination: Combination = NotACombination
 
         for (player in table.iterator()) {
-            if (player == lastPlayer) lastCombination = NotACombination
+            if (player == lastPlayer) {
+                lastCombination = NotACombination
+                // 抓一张牌
+                if (table.cardIndex < table.cards.size) {
+                    player.handCards().add(table.cards[table.cardIndex])
+                    table.cardIndex++
+                } else {
+                    // 重新发牌
+                    reply("重新发牌中，请稍后")
+                    val cards =
+                        (Card.cards() + Card.cards() + Card.cards() + Card.cards() + Card.kinds()).shuffled()
+                            .toCardSet()
+                    for (p in table.players) {
+                        for (card in p.handCards()) {
+                            cards.remove(card)
+                        }
+                    }
+                    table.cards = cards
+                    player.handCards().add(table.cards.first())
+                    table.cardIndex = 1
+                }
+            }
 
             if (this.isActive)
                 reply(At(player) + " 轮到你出牌了")
+            player.sendMessage("当前手牌：${player.handCards().toSortedString()}")
 
             val startJob = Job(this)
 
@@ -161,6 +187,7 @@ class Game(private val gameGroup: Group, private val basicBet: Int = 1) : Comple
                     if (message.content[0].toString() == "/") {
                         val rawCardsString = message.content.substring(1)
                         val deserializedCards = rawCardsString.deserializeToCard()
+                        GDY.logger.info(deserializedCards.toString())
                         if (!(player.handCards() have deserializedCards)) {
                             player.sendMessage("没在你的牌中找到你想出的牌哦")
                             return@playCard
@@ -189,40 +216,42 @@ class Game(private val gameGroup: Group, private val basicBet: Int = 1) : Comple
                                     && comb > lastOtherCombination
                                     && deserializedCards.size == lastCardSet.size)
                         ) {
-                            player.play(deserializedCards)
-                            lastKing = player.handCards().isKing
 
                             /**
                              * 如果是带王的顺子，就记一下另一种顺
                              */
-                            lastCombination = NotACombination
+                            lastOtherCombination = NotACombination
                             if (comb is Smooth && lastKing) {
                                 if (!player.handCards().contains(comb.start)) {
                                     if (comb.end != Card.TWO) {
-                                        lastCombination = Smooth(
+                                        lastOtherCombination = Smooth(
                                             Card.findCard(comb.start.value + 1),
                                             Card.findCard(comb.end.value + 1)
                                         )
+                                        reply("注：此顺子使用了王，为${comb.start}")
                                     }
                                 }
                                 if (!player.handCards().contains(comb.end)) {
                                     if (comb.start != Card.THREE) {
-                                        lastCombination = Smooth(
+                                        lastOtherCombination = Smooth(
                                             Card.findCard(comb.start.value - 1),
                                             Card.findCard(comb.end.value - 1)
                                         )
+                                        reply("注：此顺子使用了王，为${comb.end}")
                                     }
                                 }
                             }
+                            player.play(deserializedCards)
+                            lastKing = player.handCards().isKing
 
                             /*
                                 炸弹有特殊回复，并且翻倍
                              */
                             if (comb is Bomb) {
                                 magnification *= 2
-                                reply("炸弹！<${player.nick}>出了$comb")
+                                reply("炸弹！<${player.nameCardOrNick}>出了$comb")
                                 reply("当前倍率：$magnification")
-                            } else reply("<${player.nick}>出了$comb")
+                            } else reply("<${player.nameCardOrNick}>出了$comb")
 
                             //获胜判断
                             if (player.handCards().size == 0) {
@@ -232,27 +261,7 @@ class Game(private val gameGroup: Group, private val basicBet: Int = 1) : Comple
                                 return@playCard
                             }
 
-                            // 抓一张牌
-                            if (table.cardIndex < table.cards.size) {
-                                player.handCards().add(table.cards[table.cardIndex])
-                                table.cardIndex++
-                            } else {
-                                // 重新发牌
-                                reply("重新发牌中，请稍后")
-                                val cards =
-                                    (Card.cards() + Card.cards() + Card.cards() + Card.cards() + Card.kinds()).shuffled()
-                                        .toCardSet()
-                                for (p in table.players) {
-                                    for (card in p.handCards()) {
-                                        cards.remove(card)
-                                    }
-                                }
-                                table.cards = cards
-                                player.handCards().add(table.cards.first())
-                                table.cardIndex = 1
-                            }
-                            player.handCards().sort()
-                            player.sendMessage("你还剩\n ${player.handCards()}")
+
 
                             lastCardSet = deserializedCards
                             lastCombination = comb
@@ -270,7 +279,7 @@ class Game(private val gameGroup: Group, private val basicBet: Int = 1) : Comple
                     ) {
                         if (lastPlayer == player) player.sendMessage("这是你的回合，不可以不出哦")
                         else {
-                            reply("<${player.nick}>选择了不出")
+                            reply("<${player.nameCardOrNick}>选择了不出")
                             startJob.cancel()
                         }
                     }
@@ -306,8 +315,8 @@ class Game(private val gameGroup: Group, private val basicBet: Int = 1) : Comple
         winner.addPoints(amount)
         table.banker = winner
         reply(
-            "${winner.nick} 赢得了 $amount 个 point\n" +
-                    "当前玩家剩余 point ：\n${table.players.map { it.data.coins.toString() + "\n" }}"
+            "${winner.nameCardOrNick} 赢得了 $amount 个 point\n" +
+                    "当前玩家剩余 point ：\n${table.players.map { it.nameCardOrNick + " : " + it.data.coins.toString() + "\n" }}"
         )
     }
 

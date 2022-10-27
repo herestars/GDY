@@ -16,7 +16,7 @@ import net.mamoe.mirai.utils.info
 
 object GDY : KotlinPlugin(
     JvmPluginDescription(
-        id = "com.example.demo",
+        id = "com.herestars.gdy",
         name = "GDY",
         version = "0.1.0",
     ) {
@@ -36,11 +36,11 @@ object GDY : KotlinPlugin(
         }
 
         globalEventChannel().subscribeGroupMessages {
-            case("创建游戏"){
+            case("创建干瞪眼"){
                 //只有允许的群聊可以玩斗地主
                 if (group.id in GDYConfig.groups) {
                     launch { Game(group).gameStart() }
-                    subject.sendMessage("创建成功（底分：200）！发送“上桌”即可参与游戏")
+                    subject.sendMessage("创建成功（底分：1）！发送“上桌”即可参与游戏")
                 }
             }
         }

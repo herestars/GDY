@@ -1,7 +1,6 @@
 package com.herestars.data
 
 import kotlinx.serialization.Serializable
-import net.mamoe.mirai.console.data.AutoSavePluginConfig
 import net.mamoe.mirai.console.data.AutoSavePluginData
 import net.mamoe.mirai.console.data.value
 import java.util.*
@@ -34,10 +33,10 @@ data class CustomData(
         val lastTieDay = lastApplyTime / 1000 / 60 / 60 / 24
         val today = Date().time / 1000 / 60 / 60 / 24
         return if (today - lastTieDay >= 1) {
-            coins += 500
+            coins += 200
             lastApplyTime = Date().time
-            "又输光了吗……喏，这是500个point，别再输了哦"
+            "又输光了吗……喏，这是200个point，别再输了哦"
         } else
-            "你今天已经领取过500个point了，别得寸进尺了哦！"
+            "你今天已经领取过200个point了，别得寸进尺了哦！"
     }
 }

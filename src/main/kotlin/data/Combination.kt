@@ -12,8 +12,9 @@ open class Combination(private val comparableCard: Card) {
     fun sameType(other: Combination): Boolean = (this::class == this::class) || (this is Bomb && other is Bomb)
 
     open operator fun compareTo(other: Combination): Int = when {
-        comparableCard > other.comparableCard -> 1
+        comparableCard.value == other.comparableCard.value + 1 -> 1
         comparableCard == other.comparableCard -> 0
+        comparableCard.value == 13 -> 1
         comparableCard < other.comparableCard -> -1
         else -> 0
     }
@@ -45,17 +46,13 @@ class Double(private val card: Card) : Combination(card) {
 }
 
 fun CardSet.isDouble(): Double? =
-    if (size == 2) {
-        this.sort()
-        if (this[1] == this[0] || Card.isKing(this[1])) Double(this[1])
-        null
-    }
+    if (size == 2 && this[1] == this[0])
+        Double(this[1])
     else null
 
 /**
  * ### 炸弹
  * @param   card    手牌
- * @param   soft    是否是软炸
  */
 class Bomb(private val card: Card) : Combination(card) {
     override fun toString(): String = CardSet(card, card, card).toString()
@@ -84,11 +81,11 @@ class Smooth(val start: Card, val end: Card) : Combination(start) {
     2.如果每个牌都比前一个牌大1，就是顺子，否则不是顺子
  */
 fun CardSet.isSmooth(): Smooth? {
-    sort()
-    return if (this[lastIndex].value <= 12 && this.size >= 3) {
+    val sortList = sort()
+    return if (sortList[lastIndex].value <= 12 && sortList.size >= 3) {
         for (i in (0 until size - 1)) {
-            if (this[i + 1].value - this[i].value != 1) return null
+            if (sortList[i + 1].value - sortList[i].value != 1) return null
         }
-        return Smooth(this[0], this[lastIndex])
+        return Smooth(sortList[0], sortList[lastIndex])
     } else null
 }
